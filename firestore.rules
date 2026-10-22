@@ -1,0 +1,121 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global Default-Deny Catch-All
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Primitive Helpers
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isValidTimestamp(ts) {
+      return ts is timestamp && ts <= request.time;
+    }
+
+    // 1. VaultDocket Validation Blueprint
+    function isValidVaultDocket(data) {
+      return data.userId is string && data.userId == request.auth.uid && data.userId.size() >= 1 && data.userId.size() <= 128 &&
+             data.title is string && data.title.size() >= 1 && data.title.size() <= 200 &&
+             data.caseSummary is string && data.caseSummary.size() >= 1 && data.caseSummary.size() <= 5000 &&
+             data.moduleTag is string && data.moduleTag in ['MODULE_01', 'MODULE_02', 'MODULE_03', 'MODULE_04', 'MODULE_05', 'MODULE_06', 'MODULE_07', 'BIOSCIENCE'] &&
+             data.phase is string && data.phase in ['GENESIS', 'EXECUTION', 'AUDIT_GATE', 'IMMORTALIZED'] &&
+             data.planeStatus is string && data.planeStatus in ['MORTAL', 'IMMORTAL'] &&
+             data.rulingText is string && data.rulingText.size() <= 15000 &&
+             data.sealHash is string && data.sealHash.size() >= 1 && data.sealHash.size() <= 120 &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    match /vault_dockets/{docketId} {
+      allow get: if isSignedIn() && isValidId(docketId) && existing().userId == request.auth.uid;
+      allow list: if isSignedIn() && existing().userId == request.auth.uid;
+
+      allow create: if isSignedIn() &&
+                       isValidId(docketId) &&
+                       incoming().keys().hasAll(['userId', 'title', 'caseSummary', 'moduleTag', 'phase', 'planeStatus', 'rulingText', 'sealHash', 'createdAt', 'updatedAt']) &&
+                       incoming().keys().hasOnly(['userId', 'title', 'caseSummary', 'moduleTag', 'phase', 'planeStatus', 'rulingText', 'sealHash', 'createdAt', 'updatedAt']) &&
+                       isValidVaultDocket(incoming());
+
+      allow update: if isSignedIn() &&
+                       isValidId(docketId) &&
+                       existing().userId == request.auth.uid &&
+                       isValidVaultDocket(incoming()) &&
+                       incoming().userId == existing().userId &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().diff(existing()).affectedKeys().hasOnly(['title', 'caseSummary', 'moduleTag', 'phase', 'planeStatus', 'rulingText', 'sealHash', 'updatedAt']);
+
+      allow delete: if isSignedIn() && isValidId(docketId) && existing().userId == request.auth.uid;
+    }
+
+    // 2. ChatMessage Validation Blueprint
+    function isValidChatMessage(data) {
+      return data.userId is string && data.userId == request.auth.uid && data.userId.size() >= 1 && data.userId.size() <= 128 &&
+             data.sender is string && data.sender in ['USER', 'VAULT'] &&
+             data.moduleTag is string && data.moduleTag.size() >= 1 && data.moduleTag.size() <= 60 &&
+             data.phase is string && data.phase in ['GENESIS', 'EXECUTION', 'AUDIT_GATE', 'IMMORTALIZED'] &&
+             data.planeStatus is string && data.planeStatus in ['MORTAL', 'IMMORTAL'] &&
+             data.content is string && data.content.size() >= 1 && data.content.size() <= 20000 &&
+             data.modelUsed is string && data.modelUsed.size() >= 1 && data.modelUsed.size() <= 100 &&
+             data.sealHash is string && data.sealHash.size() >= 1 && data.sealHash.size() <= 120 &&
+             data.groundingSources is string && data.groundingSources.size() <= 5000 &&
+             isValidTimestamp(data.createdAt);
+    }
+
+    match /chat_messages/{messageId} {
+      allow get: if isSignedIn() && isValidId(messageId) && existing().userId == request.auth.uid;
+      allow list: if isSignedIn() && existing().userId == request.auth.uid;
+
+      allow create: if isSignedIn() &&
+                       isValidId(messageId) &&
+                       incoming().keys().hasAll(['userId', 'sender', 'moduleTag', 'phase', 'planeStatus', 'content', 'modelUsed', 'sealHash', 'groundingSources', 'createdAt']) &&
+                       incoming().keys().hasOnly(['userId', 'sender', 'moduleTag', 'phase', 'planeStatus', 'content', 'modelUsed', 'sealHash', 'groundingSources', 'createdAt']) &&
+                       isValidChatMessage(incoming());
+
+      allow update: if false;
+      allow delete: if isSignedIn() && isValidId(messageId) && existing().userId == request.auth.uid;
+    }
+
+    // 3. BioscienceAudit Validation Blueprint
+    function isValidBioscienceAudit(data) {
+      return data.userId is string && data.userId == request.auth.uid && data.userId.size() >= 1 && data.userId.size() <= 128 &&
+             data.sampleName is string && data.sampleName.size() >= 1 && data.sampleName.size() <= 200 &&
+             data.bioscienceCategory is string && data.bioscienceCategory.size() >= 1 && data.bioscienceCategory.size() <= 100 &&
+             data.findings is string && data.findings.size() >= 1 && data.findings.size() <= 15000 &&
+             data.regulatoryCitation is string && data.regulatoryCitation.size() >= 1 && data.regulatoryCitation.size() <= 500 &&
+             data.riskLevel is string && data.riskLevel in ['LOW', 'MODERATE', 'HIGH', 'CRITICAL'] &&
+             data.sealHash is string && data.sealHash.size() >= 1 && data.sealHash.size() <= 120 &&
+             isValidTimestamp(data.createdAt);
+    }
+
+    match /bioscience_audits/{auditId} {
+      allow get: if isSignedIn() && isValidId(auditId) && existing().userId == request.auth.uid;
+      allow list: if isSignedIn() && existing().userId == request.auth.uid;
+
+      allow create: if isSignedIn() &&
+                       isValidId(auditId) &&
+                       incoming().keys().hasAll(['userId', 'sampleName', 'bioscienceCategory', 'findings', 'regulatoryCitation', 'riskLevel', 'sealHash', 'createdAt']) &&
+                       incoming().keys().hasOnly(['userId', 'sampleName', 'bioscienceCategory', 'findings', 'regulatoryCitation', 'riskLevel', 'sealHash', 'createdAt']) &&
+                       isValidBioscienceAudit(incoming());
+
+      allow update: if false;
+      allow delete: if isSignedIn() && isValidId(auditId) && existing().userId == request.auth.uid;
+    }
+  }
+}

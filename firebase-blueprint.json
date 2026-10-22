@@ -1,0 +1,225 @@
+{
+  "entities": {
+    "VaultDocket": {
+      "title": "VaultDocket",
+      "description": "Legal and strategic case docket tracked across the 4-Phase Loop Engine and 7 Justice Vault Modules.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Authenticated Google user UID who owns this docket."
+        },
+        "title": {
+          "type": "string",
+          "description": "Short tactical title of the legal or bioscience case."
+        },
+        "caseSummary": {
+          "type": "string",
+          "description": "Raw facts, blotter summary, or agency complaint details."
+        },
+        "moduleTag": {
+          "type": "string",
+          "description": "One of the 7 Justice Vault Modules or BIOSCIENCE.",
+          "enum": [
+            "MODULE_01",
+            "MODULE_02",
+            "MODULE_03",
+            "MODULE_04",
+            "MODULE_05",
+            "MODULE_06",
+            "MODULE_07",
+            "BIOSCIENCE"
+          ]
+        },
+        "phase": {
+          "type": "string",
+          "description": "Current step in the 4-Phase Loop Engine.",
+          "enum": [
+            "GENESIS",
+            "EXECUTION",
+            "AUDIT_GATE",
+            "IMMORTALIZED"
+          ]
+        },
+        "planeStatus": {
+          "type": "string",
+          "description": "Dual-plane classification: MORTAL (working draft) or IMMORTAL (sealed).",
+          "enum": [
+            "MORTAL",
+            "IMMORTAL"
+          ]
+        },
+        "rulingText": {
+          "type": "string",
+          "description": "Verdict-grade legal/strategic guidance rendered by Vault 1293."
+        },
+        "sealHash": {
+          "type": "string",
+          "description": "Symbolic #VAULT1293-SECURE pseudo-seal identifier."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Creation timestamp submitted via FieldValue.serverTimestamp()."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Last update timestamp submitted via FieldValue.serverTimestamp()."
+        }
+      },
+      "required": [
+        "userId",
+        "title",
+        "caseSummary",
+        "moduleTag",
+        "phase",
+        "planeStatus",
+        "rulingText",
+        "sealHash",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "ChatMessage": {
+      "title": "ChatMessage",
+      "description": "Multi-turn Sovereign Vault 1293 chat message and MGD deliberation record.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Authenticated Google user UID who owns this message."
+        },
+        "sender": {
+          "type": "string",
+          "description": "Message author role.",
+          "enum": [
+            "USER",
+            "VAULT"
+          ]
+        },
+        "moduleTag": {
+          "type": "string",
+          "description": "Detected Justice Vault module tag."
+        },
+        "phase": {
+          "type": "string",
+          "description": "4-Phase Loop Engine step."
+        },
+        "planeStatus": {
+          "type": "string",
+          "description": "MORTAL or IMMORTAL dual-plane label."
+        },
+        "content": {
+          "type": "string",
+          "description": "Full text content of the message or verdict."
+        },
+        "modelUsed": {
+          "type": "string",
+          "description": "Gemini model identifier used to generate the verdict."
+        },
+        "sealHash": {
+          "type": "string",
+          "description": "Symbolic #VAULT1293-SECURE pseudo-seal."
+        },
+        "groundingSources": {
+          "type": "string",
+          "description": "Formatted search or maps grounding citations if applicable."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Message creation timestamp submitted via FieldValue.serverTimestamp()."
+        }
+      },
+      "required": [
+        "userId",
+        "sender",
+        "moduleTag",
+        "phase",
+        "planeStatus",
+        "content",
+        "modelUsed",
+        "sealHash",
+        "groundingSources",
+        "createdAt"
+      ]
+    },
+    "BioscienceAudit": {
+      "title": "BioscienceAudit",
+      "description": "Bioscience, forensics, environmental, and medico-legal lab audit entry.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Authenticated Google user UID who owns this bioscience audit."
+        },
+        "sampleName": {
+          "type": "string",
+          "description": "Name or location of sample (e.g., Bacoor Zapote River Water Sample)."
+        },
+        "bioscienceCategory": {
+          "type": "string",
+          "description": "Category of bioscience analysis (e.g., Toxicology, Water Quality, Medico-Legal DNA, Food Safety)."
+        },
+        "findings": {
+          "type": "string",
+          "description": "Scientific and forensic analysis results."
+        },
+        "regulatoryCitation": {
+          "type": "string",
+          "description": "Philippine environmental/health/forensic law citation (e.g., RA 9275 Clean Water Act, FDA Act RA 9711)."
+        },
+        "riskLevel": {
+          "type": "string",
+          "description": "Assessed bio-risk severity.",
+          "enum": [
+            "LOW",
+            "MODERATE",
+            "HIGH",
+            "CRITICAL"
+          ]
+        },
+        "sealHash": {
+          "type": "string",
+          "description": "Symbolic #VAULT1293-SECURE pseudo-seal."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Creation timestamp submitted via FieldValue.serverTimestamp()."
+        }
+      },
+      "required": [
+        "userId",
+        "sampleName",
+        "bioscienceCategory",
+        "findings",
+        "regulatoryCitation",
+        "riskLevel",
+        "sealHash",
+        "createdAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/vault_dockets/{docketId}": {
+      "schema": {
+        "$ref": "#/entities/VaultDocket"
+      },
+      "description": "Root collection storing per-user legal and strategic dockets across the 4-Phase Loop Engine."
+    },
+    "/chat_messages/{messageId}": {
+      "schema": {
+        "$ref": "#/entities/ChatMessage"
+      },
+      "description": "Root collection storing per-user Sovereign Vault 1293 chat history and MGD engine deliberations."
+    },
+    "/bioscience_audits/{auditId}": {
+      "schema": {
+        "$ref": "#/entities/BioscienceAudit"
+      },
+      "description": "Root collection storing per-user Bioscience & Forensics Lab audits."
+    }
+  }
+}

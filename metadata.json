@@ -1,0 +1,6 @@
+{
+  "name": "Vault 1293",
+  "description": "I.A.M Dimension OS v5.0 — Sovereign Vault 1293 legal-strategic command system, multi-engine deliberator, and multimodal studio.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
