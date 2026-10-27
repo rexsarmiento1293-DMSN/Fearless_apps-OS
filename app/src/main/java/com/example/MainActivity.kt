@@ -26,6 +26,7 @@ import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.Science
 import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -63,6 +64,7 @@ import com.example.ui.auth.AuthScreen
 import com.example.ui.auth.signOutVault
 import com.example.ui.screens.BioscienceLabScreen
 import com.example.ui.screens.EvidenceStudioScreen
+import com.example.ui.screens.LeRobotProfilerScreen
 import com.example.ui.screens.VaultDashboardScreen
 import com.example.ui.screens.VerdictChatScreen
 import com.example.ui.theme.CyberCyan
@@ -79,6 +81,11 @@ import com.example.ui.theme.VaultSurface
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.firestore.FirebaseFirestore
+import com.iamdimension.v7.ui.IamDimensionAppState
+import com.iamdimension.v7.ui.IamDimensionNavGraph
+import com.iamdimension.v7.ui.IamDimensionPalette
+import com.iamdimension.v7.ui.IamDimensionV7Theme
+import androidx.navigation.compose.rememberNavController
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -110,25 +117,82 @@ enum class VaultTab(
 ) {
     DASHBOARD("dashboard", "7 Modules", Icons.Default.Dashboard),
     VERDICT_CHAT("verdict_chat", "MGD Verdict", Icons.AutoMirrored.Filled.Chat),
+    LEROBOT_PROFILER("lerobot_profiler", "LeRobot Profiler", Icons.Default.Speed),
     BIOSCIENCE("bioscience_lab", "Bioscience", Icons.Default.Science),
     EVIDENCE_STUDIO("evidence_studio", "Studio & Scan", Icons.Default.AutoAwesome)
 }
 
 @Composable
 fun AppNavigation() {
-    val auth = remember { FirebaseAuth.getInstance() }
-    val currentUser by auth.authStateFlow().collectAsStateWithLifecycle(initialValue = auth.currentUser)
-    val user = currentUser
+    var showV7PortalNavGraph by rememberSaveable { mutableStateOf(true) }
+    val navController = rememberNavController()
+    val appState = remember { IamDimensionAppState() }
 
-    if (user == null) {
-        AuthScreen(
-            onAuthSuccess = {}
-        )
-    } else {
-        SovereignVaultMainScreen(
-            currentUserId = user.uid,
-            userEmail = user.email ?: "Commander Rex"
-        )
+    Column(modifier = Modifier.fillMaxSize()) {
+        Surface(
+            color = IamDimensionPalette.DeepNebula,
+            border = BorderStroke(1.dp, IamDimensionPalette.CyberGold.copy(alpha = 0.4f)),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = if (showV7PortalNavGraph) {
+                        "0519 PORTAL ZONE • V.7 NAVGRAPH (19 IMGS)"
+                    } else {
+                        "VAULT 1293 • 5-TAB CLOUD SUITE"
+                    },
+                    style = MaterialTheme.typography.labelSmall,
+                    color = IamDimensionPalette.CyberGold
+                )
+                TextButton(
+                    onClick = { showV7PortalNavGraph = !showV7PortalNavGraph },
+                    modifier = Modifier.testTag("switch_portal_mode_button")
+                ) {
+                    Text(
+                        text = if (showV7PortalNavGraph) "OPEN 5-TAB SUITE" else "OPEN 0519 NAVGRAPH",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = IamDimensionPalette.PhylaxCyan
+                    )
+                }
+            }
+        }
+
+        Box(modifier = Modifier.weight(1f)) {
+            if (showV7PortalNavGraph) {
+                IamDimensionV7Theme {
+                    Surface(
+                        modifier = Modifier.fillMaxSize(),
+                        color = IamDimensionPalette.VoidBlack
+                    ) {
+                        IamDimensionNavGraph(
+                            navController = navController,
+                            appState = appState
+                        )
+                    }
+                }
+            } else {
+                val auth = remember { FirebaseAuth.getInstance() }
+                val currentUser by auth.authStateFlow().collectAsStateWithLifecycle(initialValue = auth.currentUser)
+                val user = currentUser
+
+                if (user == null) {
+                    AuthScreen(
+                        onAuthSuccess = {}
+                    )
+                } else {
+                    SovereignVaultMainScreen(
+                        currentUserId = user.uid,
+                        userEmail = user.email ?: "Commander Rex"
+                    )
+                }
+            }
+        }
     }
 }
 
@@ -145,11 +209,12 @@ fun SovereignVaultMainScreen(
         key = currentUserId,
         factory = viewModelFactory {
             initializer {
-                val app = checkNotNull(this[APPLICATION_KEY]) {
+                checkNotNull(this[APPLICATION_KEY]) {
                     "APPLICATION_KEY missing from CreationExtras"
                 }
-                val databaseId = app.getString(R.string.firestore_database_id)
-                val db = FirebaseFirestore.getInstance(databaseId)
+                val db = FirebaseFirestore.getInstance(
+                    "ai-studio-android-iamsover-129d727b-49ce-41e6-b574-5705e44eced2"
+                )
                 VaultViewModel(
                     repository = VaultRepository(db),
                     geminiService = GeminiService(),
@@ -171,6 +236,13 @@ fun SovereignVaultMainScreen(
     val chatMessagesState by viewModel.chatMessagesState.collectAsStateWithLifecycle()
     val bioscienceState by viewModel.bioscienceState.collectAsStateWithLifecycle()
     val selectedModule by viewModel.selectedModule.collectAsStateWithLifecycle()
+    val kaggleKey by viewModel.kaggleKey.collectAsStateWithLifecycle()
+    val isBlackCaseUnlocked by viewModel.isBlackCaseUnlocked.collectAsStateWithLifecycle()
+    val blackCaseAccessDenied by viewModel.blackCaseAccessDenied.collectAsStateWithLifecycle()
+    val activeLanguage by viewModel.activeLanguage.collectAsStateWithLifecycle()
+    val selectedRadarType by viewModel.selectedRadarType.collectAsStateWithLifecycle()
+    val radarTelemetry by viewModel.radarTelemetry.collectAsStateWithLifecycle()
+    val isRadarScanning by viewModel.isRadarScanning.collectAsStateWithLifecycle()
     val selectedModel by viewModel.selectedModel.collectAsStateWithLifecycle()
     val enableHighThinking by viewModel.enableHighThinking.collectAsStateWithLifecycle()
     val enableGoogleSearch by viewModel.enableGoogleSearch.collectAsStateWithLifecycle()
@@ -181,6 +253,7 @@ fun SovereignVaultMainScreen(
     val fastTriageOutput by viewModel.fastTriageOutput.collectAsStateWithLifecycle()
     val evidenceScanOutput by viewModel.evidenceScanOutput.collectAsStateWithLifecycle()
     val generatedImage by viewModel.generatedImage.collectAsStateWithLifecycle()
+    val driveRunResult by viewModel.driveRunResult.collectAsStateWithLifecycle()
     val liveConnected by viewModel.liveConnected.collectAsStateWithLifecycle()
     val liveTranscriptLog by viewModel.liveTranscriptLog.collectAsStateWithLifecycle()
     val deepMotionGlbUrl by viewModel.deepMotionGlbUrl.collectAsStateWithLifecycle()
@@ -209,12 +282,12 @@ fun SovereignVaultMainScreen(
                         Spacer(modifier = Modifier.width(8.dp))
                         Column {
                             Text(
-                                text = "I.A.M DIMENSION OS v5.0",
+                                text = "I.A.M DIMENSION OS v7.0 (${activeLanguage.isoCode})",
                                 style = MaterialTheme.typography.titleMedium,
                                 color = TextPrimary
                             )
                             Text(
-                                text = "VAULT 1293 • $userEmail",
+                                text = "VAULT 1293 • $userEmail • ${activeLanguage.displayName}",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = SovereignGold
                             )
@@ -318,6 +391,24 @@ fun SovereignVaultMainScreen(
                             selectedModule = selectedModule,
                             fastTriageOutput = fastTriageOutput,
                             isAiWorking = isAiWorking,
+                            kaggleKey = kaggleKey,
+                            isBlackCaseUnlocked = isBlackCaseUnlocked,
+                            blackCaseAccessDenied = blackCaseAccessDenied,
+                            activeLanguage = activeLanguage,
+                            selectedRadarType = selectedRadarType,
+                            radarTelemetry = radarTelemetry,
+                            isRadarScanning = isRadarScanning,
+                            onUpdateKaggleKey = { viewModel.updateKaggleKey(it) },
+                            onSubmitBlackCaseKey = { viewModel.submitBlackCaseKaggleKey() },
+                            onSelectLanguage = { viewModel.selectLanguage(it) },
+                            onFindNearestProfessional = { type ->
+                                viewModel.findNearestProfessional(context, type)
+                            },
+                            onRouteToWolfsDenSmolagents = { mod ->
+                                viewModel.selectModule(mod)
+                                currentTab = VaultTab.VERDICT_CHAT
+                                viewModel.sendToSmolagents(context, mod.title, mod.samplePrompt)
+                            },
                             onSelectModule = { viewModel.selectModule(it) },
                             onLaunchModulePromptInChat = { mod ->
                                 viewModel.selectModule(mod)
@@ -370,8 +461,16 @@ fun SovereignVaultMainScreen(
                             onSpeakMessage = { viewModel.speakVerdictText(context, it) },
                             onTranscribePcm = { pcm, cb -> viewModel.transcribeRecordedPcm(pcm, cb) },
                             onToggleLiveSession = { viewModel.toggleLiveVoiceSession() },
-                            onSendLiveVoiceTurn = { viewModel.sendLiveVoiceTurn(it) }
+                            onSendLiveVoiceTurn = { viewModel.sendLiveVoiceTurn(it) },
+                            activeLanguage = activeLanguage,
+                            onSendToSmolagents = { modName, prompt ->
+                                viewModel.sendToSmolagents(context, modName, prompt)
+                            }
                         )
+                    }
+
+                    VaultTab.LEROBOT_PROFILER -> {
+                        LeRobotProfilerScreen()
                     }
 
                     VaultTab.BIOSCIENCE -> {
@@ -389,8 +488,19 @@ fun SovereignVaultMainScreen(
                     VaultTab.EVIDENCE_STUDIO -> {
                         EvidenceStudioScreen(
                             isAiWorking = isAiWorking,
+                            driveRunResult = driveRunResult,
                             evidenceScanOutput = evidenceScanOutput,
                             generatedImageResult = generatedImage,
+                            onRunDriveUrl = { url, token, directive ->
+                                viewModel.runGoogleDriveFile(context, url, token, directive)
+                            },
+                            onRunLocalDriveUri = { uri, directive ->
+                                viewModel.runLocalDriveUri(context, uri, directive)
+                            },
+                            onBindGlbTo3DRig = { glbPathOrUrl ->
+                                viewModel.updateDeepMotionGlbUrl(glbPathOrUrl)
+                                currentTab = VaultTab.VERDICT_CHAT
+                            },
                             onScanEvidencePhoto = { bmp, prompt ->
                                 viewModel.scanEvidencePhoto(bmp, prompt)
                             },

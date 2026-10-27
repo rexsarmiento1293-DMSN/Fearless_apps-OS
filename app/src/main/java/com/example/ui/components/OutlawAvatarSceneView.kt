@@ -466,7 +466,7 @@ fun OutlawAvatarSceneView(
                             .padding(8.dp)
                     ) {
                         Text(
-                            text = "glTF 2.0 • DeepMotion Ready",
+                            text = "glTF 2.0 • DeepMotion + LeLab SO-ARM101 Ready",
                             style = MaterialTheme.typography.labelSmall,
                             color = TacticalEmerald,
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)

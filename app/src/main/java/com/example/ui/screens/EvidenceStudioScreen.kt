@@ -2,6 +2,7 @@ package com.example.ui.screens
 
 import android.graphics.Bitmap
 import android.graphics.ImageDecoder
+import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -25,10 +26,13 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.DocumentScanner
-import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.CloudDownload
+import androidx.compose.material.icons.filled.DocumentScanner
+import androidx.compose.material.icons.filled.FolderOpen
+import androidx.compose.material.icons.filled.PhotoLibrary
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -45,9 +49,11 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -55,9 +61,12 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.example.data.remote.DriveFileRunResult
 import com.example.data.remote.GeneratedImageResult
+import com.example.data.remote.GoogleDriveFileRunner
 import com.example.ui.theme.CyberCyan
 import com.example.ui.theme.SovereignGold
 import com.example.ui.theme.TacticalEmerald
@@ -70,14 +79,34 @@ import com.example.ui.theme.VaultObsidian
 @Composable
 fun EvidenceStudioScreen(
     isAiWorking: Boolean,
+    driveRunResult: DriveFileRunResult?,
     evidenceScanOutput: String?,
     generatedImageResult: GeneratedImageResult?,
+    onRunDriveUrl: (String, String, String) -> Unit,
+    onRunLocalDriveUri: (Uri, String) -> Unit,
+    onBindGlbTo3DRig: (String) -> Unit,
     onScanEvidencePhoto: (Bitmap, String) -> Unit,
     onGenerateOrEditImage: (String, String, Boolean, Bitmap?) -> Unit,
     onSpeakText: (String) -> Unit
 ) {
     val context = LocalContext.current
     val aspectRatios = listOf("1:1", "2:3", "3:2", "3:4", "4:3", "9:16", "16:9", "21:9")
+
+    var driveUrl by rememberSaveable {
+        mutableStateOf(GoogleDriveFileRunner.DEFAULT_DRIVE_FILE_URL)
+    }
+    var driveOauthToken by rememberSaveable { mutableStateOf("") }
+    var driveDirective by rememberSaveable {
+        mutableStateOf("Run and audit Google Drive file 1EqnCS2skwrJCnpEwavhSC_Wk3seb3K3B in Sovereign Vault 1293.")
+    }
+    var hasAutoTriggeredDriveRun by rememberSaveable { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        if (!hasAutoTriggeredDriveRun && driveRunResult == null) {
+            hasAutoTriggeredDriveRun = true
+            onRunDriveUrl(driveUrl, driveOauthToken, driveDirective)
+        }
+    }
 
     var selectedEvidenceBitmap by remember { mutableStateOf<Bitmap?>(null) }
     var scanPrompt by remember {
@@ -89,6 +118,14 @@ fun EvidenceStudioScreen(
     }
     var selectedAspectRatio by remember { mutableStateOf("16:9") }
     var useStudioQualityPro by remember { mutableStateOf(false) }
+
+    val driveDocumentPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri != null) {
+            onRunLocalDriveUri(uri, driveDirective)
+        }
+    }
 
     val photoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
@@ -117,6 +154,199 @@ fun EvidenceStudioScreen(
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        // 0. Google Drive Sovereign File Runner (OAuth drive.readonly + Android Drive SAF Provider)
+        item {
+            Card(
+                shape = RoundedCornerShape(18.dp),
+                colors = CardDefaults.cardColors(containerColor = VaultCardSurface),
+                border = BorderStroke(1.5.dp, TacticalEmerald),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("google_drive_runner_card")
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.CloudDownload,
+                            contentDescription = "Google Drive Runner",
+                            tint = TacticalEmerald,
+                            modifier = Modifier.size(28.dp)
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column {
+                            Text(
+                                text = "🚀 GOOGLE DRIVE FILE RUNNER",
+                                style = MaterialTheme.typography.titleLarge,
+                                color = TextPrimary
+                            )
+                            Text(
+                                text = "OAuth2 drive.readonly (${GoogleDriveFileRunner.OAUTH_PROJECT_ID}) • File ID: ${GoogleDriveFileRunner.extractDriveFileId(driveUrl)}",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = TacticalEmerald
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    OutlinedTextField(
+                        value = driveUrl,
+                        onValueChange = { driveUrl = it },
+                        label = { Text("Google Drive Link or File ID") },
+                        singleLine = true,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("drive_url_input")
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    OutlinedTextField(
+                        value = driveOauthToken,
+                        onValueChange = { driveOauthToken = it },
+                        label = { Text("Optional OAuth Bearer Token (ya29... for Drive v3 REST API)") },
+                        singleLine = true,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("drive_oauth_token_input")
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    OutlinedTextField(
+                        value = driveDirective,
+                        onValueChange = { driveDirective = it },
+                        label = { Text("Execution / Audit Directive") },
+                        minLines = 2,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("drive_directive_input")
+                    )
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Button(
+                            onClick = {
+                                onRunDriveUrl(driveUrl, driveOauthToken, driveDirective)
+                            },
+                            enabled = !isAiWorking && driveUrl.isNotBlank(),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = TacticalEmerald,
+                                contentColor = VaultObsidian
+                            ),
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(50.dp)
+                                .testTag("run_drive_file_button")
+                        ) {
+                            Icon(Icons.Default.PlayArrow, contentDescription = null)
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("RUN LINK", fontWeight = FontWeight.Bold)
+                        }
+
+                        OutlinedButton(
+                            onClick = {
+                                driveDocumentPickerLauncher.launch(arrayOf("*/*"))
+                            },
+                            enabled = !isAiWorking,
+                            border = BorderStroke(1.dp, SovereignGold),
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(50.dp)
+                                .testTag("open_drive_saf_button")
+                        ) {
+                            Icon(Icons.Default.FolderOpen, contentDescription = null, tint = SovereignGold)
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("OPEN DRIVE APP", color = SovereignGold, fontWeight = FontWeight.Bold)
+                        }
+                    }
+
+                    if (driveRunResult != null) {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Surface(
+                            color = VaultObsidian,
+                            shape = RoundedCornerShape(12.dp),
+                            border = BorderStroke(1.dp, TacticalEmerald.copy(alpha = 0.5f)),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("drive_run_output_surface")
+                        ) {
+                            Column(modifier = Modifier.padding(12.dp)) {
+                                Text(
+                                    text = "⚡ ${driveRunResult.executionMode}",
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = SovereignGold,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = "File: ${driveRunResult.fileName} • MIME: ${driveRunResult.mimeType} • Channel: ${driveRunResult.sourceChannel}",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = CyberCyan,
+                                    fontFamily = FontFamily.Monospace
+                                )
+
+                                if (driveRunResult.previewBitmap != null) {
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Card(
+                                        shape = RoundedCornerShape(10.dp),
+                                        border = BorderStroke(1.dp, VaultCardBorder),
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(170.dp)
+                                    ) {
+                                        Image(
+                                            bitmap = driveRunResult.previewBitmap.asImageBitmap(),
+                                            contentDescription = "Drive Payload Preview",
+                                            contentScale = ContentScale.Crop,
+                                            modifier = Modifier.fillMaxSize()
+                                        )
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = driveRunResult.executionOutput,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = TextPrimary
+                                )
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.End
+                                ) {
+                                    if (!driveRunResult.localGlbPathOrUrl.isNullOrBlank()) {
+                                        TextButton(
+                                            onClick = { onBindGlbTo3DRig(driveRunResult.localGlbPathOrUrl) },
+                                            modifier = Modifier.testTag("bind_drive_glb_button")
+                                        ) {
+                                            Text("🦴 BIND TO 3D RIG", color = TacticalEmerald, fontWeight = FontWeight.Bold)
+                                        }
+                                    }
+                                    TextButton(
+                                        onClick = { onSpeakText(driveRunResult.executionOutput) },
+                                        modifier = Modifier.testTag("speak_drive_output_button")
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.AutoMirrored.Filled.VolumeUp,
+                                            contentDescription = "Speak Drive Run Output",
+                                            tint = SovereignGold,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text("SPEAK VERDICT", color = SovereignGold)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         // 1. Multimodal Evidence & Document Scanner (gemini-4-argon)
         item {
             Card(

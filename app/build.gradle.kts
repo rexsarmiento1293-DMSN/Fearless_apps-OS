@@ -15,7 +15,7 @@ android {
   compileSdk { version = release(36) { minorApiLevel = 1 } }
 
   defaultConfig {
-    applicationId = "com.aistudio.vault1293.svkpxm"
+    applicationId = "com.iamdimension.v7"
     minSdk = 24
     targetSdk = 36
     versionCode = 1
@@ -86,6 +86,41 @@ secrets {
   propertiesFileName = ".env"
   defaultPropertiesFileName = ".env.example"
   ignoreList.add("FIREBASE_APPCHECK_DEBUG_TOKEN")
+  ignoreList.add("LANGFUSE_HOST")
+  ignoreList.add("SGLANG_BASE_URL")
+}
+
+tasks.matching { it.name.startsWith("generate") && it.name.endsWith("BuildConfig") }.configureEach {
+  doLast {
+    outputs.files.files.forEach { outputDir ->
+      outputDir.walkTopDown().filter { it.name == "BuildConfig.java" }.forEach { buildConfigFile ->
+        val original = buildConfigFile.readText()
+        val sanitized = original.lines().joinToString("\n") { line ->
+          val prefixMarker = "public static final String "
+          val trimmed = line.trimStart()
+          if (trimmed.startsWith(prefixMarker) && line.endsWith("\";")) {
+            val firstQuote = line.indexOf('"')
+            val lastQuote = line.lastIndexOf('"')
+            if (firstQuote in 0 until lastQuote) {
+              val before = line.substring(0, firstQuote + 1)
+              val inner = line.substring(firstQuote + 1, lastQuote)
+                .replace("\\\"", "\"")
+                .replace("\"", "\\\"")
+              val after = line.substring(lastQuote)
+              before + inner + after
+            } else {
+              line
+            }
+          } else {
+            line
+          }
+        }
+        if (sanitized != original) {
+          buildConfigFile.writeText(sanitized)
+        }
+      }
+    }
+  }
 }
 
 googleServices { missingGoogleServicesStrategy = MissingGoogleServicesStrategy.WARN }
@@ -112,7 +147,7 @@ dependencies {
   implementation(libs.androidx.lifecycle.runtime.compose)
   implementation(libs.androidx.lifecycle.runtime.ktx)
   implementation(libs.androidx.lifecycle.viewmodel.compose)
-  // implementation(libs.androidx.navigation.compose)
+  implementation(libs.androidx.navigation.compose)
   // implementation(libs.androidx.room.ktx)
   // implementation(libs.androidx.room.runtime)
   implementation(libs.coil.compose)

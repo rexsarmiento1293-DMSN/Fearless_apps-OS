@@ -16,11 +16,15 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
 
-class VaultRepository(private val db: FirebaseFirestore) {
+class VaultRepository(
+    private val db: FirebaseFirestore = FirebaseFirestore.getInstance(
+        "ai-studio-android-iamsover-129d727b-49ce-41e6-b574-5705e44eced2"
+    )
+) {
 
     constructor(context: Context) : this(
         FirebaseFirestore.getInstance(
-            context.applicationContext.getString(R.string.firestore_database_id)
+            "ai-studio-android-iamsover-129d727b-49ce-41e6-b574-5705e44eced2"
         )
     )
 

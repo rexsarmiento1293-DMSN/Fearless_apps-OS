@@ -87,11 +87,11 @@ enum class JusticeModule(
     MODULE_04(
         tag = "MODULE_04",
         code = "MOD-04",
-        emoji = "🌊",
-        title = "Baha Early Action",
-        statute = "RA 10121 / DRRMO",
-        summary = "PAGASA rainfall warnings, Bacoor Zapote/Imus River flood protocols, forced evacuation rights, at calamity aid.",
-        samplePrompt = "Orange Warning Level na sa Cavite at tumataas na ang tubig sa Zapote River, Bacoor. Ano ang obligasyon ng Barangay DRRMO under RA 10121 at saan ang legal evacuation protocol?"
+        emoji = "🌪️🌋🔥🌊",
+        title = "4. SAKUNA",
+        statute = "RA 10121 / NDRRMC / PAGASA / BFP",
+        summary = "Human-centric disaster response. Bagyo, Lindol, Sunog, Baha. Focus on Kapatiran at Bayanihan. Access emergency hotlines (NDRRMC, PAGASA, BFP).",
+        samplePrompt = "4. SAKUNA Emergency Response: May banta ng Bagyo, Lindol, Sunog, o Baha sa aming lugar. Ibigay ang Kapatiran at Bayanihan disaster protocol under RA 10121 at ang mga emergency hotlines (NDRRMC, PAGASA, BFP)."
     ),
     MODULE_05(
         tag = "MODULE_05",
@@ -136,6 +136,82 @@ enum class JusticeModule(
         }
     }
 }
+
+enum class VaultLanguage(
+    val displayName: String,
+    val isoCode: String,
+    val localizedBanner: String,
+    val systemDirective: String
+) {
+    ENGLISH(
+        displayName = "English",
+        isoCode = "EN",
+        localizedBanner = "I.A.M Dimension V.7 • Active Language: English",
+        systemDirective = "Respond strictly and exclusively in English while preserving Philippine legal citations."
+    ),
+    TAGALOG(
+        displayName = "Tagalog",
+        isoCode = "TL",
+        localizedBanner = "I.A.M Dimension V.7 • Aktibong Wika: Tagalog",
+        systemDirective = "Sumagot nang buo at mahigpit sa wikang Tagalog habang pinapanatili ang mga batas ng Pilipinas."
+    ),
+    KAPAMPANGAN(
+        displayName = "Kapampangan",
+        isoCode = "PAM",
+        localizedBanner = "I.A.M Dimension V.7 • Amanung Aktibu: Kapampangan",
+        systemDirective = "Makibat kang buu king amanung Kapampangan (Pampanga/Tarlac) kabang babanggitan la reng batas ning Pilipinas."
+    ),
+    PANGASINAN(
+        displayName = "Pangasinan",
+        isoCode = "PAG",
+        localizedBanner = "I.A.M Dimension V.7 • Salitan Aktibo: Pangasinan",
+        systemDirective = "Man-ebat ed puron salitan Pangasinan legan ya uusaren iray ley na Pilipinas."
+    ),
+    ILOCANO(
+        displayName = "Ilocano",
+        isoCode = "ILO",
+        localizedBanner = "I.A.M Dimension V.7 • Aktibo a Pagsasao: Ilocano",
+        systemDirective = "Sumungbat iti pagsasao nga Ilocano (Iloko) bayat a dakamaten dagiti linteg ti Pilipinas."
+    ),
+    IBANAG(
+        displayName = "Ibanag",
+        isoCode = "IBG",
+        localizedBanner = "I.A.M Dimension V.7 • Aktibo nga Uvovug: Ibanag",
+        systemDirective = "Mattabbag ta uvovug nga Ibanag (Cagayan/Isabela) anna ikagi ira nga dorob na Pilipinas."
+    ),
+    BISAYA(
+        displayName = "Bisaya",
+        isoCode = "CEB",
+        localizedBanner = "I.A.M Dimension V.7 • Aktibong Pinulongan: Bisaya",
+        systemDirective = "Tubaga sa pinulongang Bisaya / Cebuano samtang nagkutlo sa mga balaod sa Pilipinas."
+    ),
+    MARANAO(
+        displayName = "Maranao",
+        isoCode = "MRW",
+        localizedBanner = "I.A.M Dimension V.7 • Katharo a Aktibo: Maranao",
+        systemDirective = "Sembag ka sa basa a Maranao (Lanao) ago aloya so manga kitab o Pilipinas."
+    ),
+    TAUSUG(
+        displayName = "Tausug",
+        isoCode = "TSG",
+        localizedBanner = "I.A.M Dimension V.7 • Bahasa Aktibu: Tausug",
+        systemDirective = "Sambag kaw ha bahasa Tausug (Sulu/Zamboanga) iban sabbuta in manga sara' sin Pilipinas."
+    )
+}
+
+data class RadarPlaceResult(
+    val id: String,
+    val name: String,
+    val category: String,
+    val address: String,
+    val distanceKm: Double,
+    val latitude: Double,
+    val longitude: Double,
+    val rating: Double,
+    val openNow: Boolean,
+    val phoneOrHotline: String,
+    val source: String
+)
 
 enum class LoopPhase(val label: String, val stepNumber: String, val description: String) {
     GENESIS("GENESIS", "01", "Raw facts, initial intake, blotter, complaint."),

@@ -11,12 +11,15 @@ import com.example.data.model.JusticeModule
 import com.example.data.model.LoopPhase
 import com.example.data.model.VaultDocket
 import com.example.data.remote.AudioWavHelper
+import com.example.data.remote.DriveFileRunResult
 import com.example.data.remote.GeminiService
 import com.example.data.remote.GeneratedImageResult
+import com.example.data.remote.GoogleDriveFileRunner
 import com.example.data.remote.LiveVoiceSessionClient
 import com.example.data.remote.VaultAiModel
 import com.example.data.repository.VaultRepository
 import com.example.ui.components.DEFAULT_DEEPMOTION_GLB_URL
+import android.net.Uri
 import kotlin.math.abs
 import kotlin.math.sin
 import kotlinx.coroutines.Job
@@ -42,6 +45,8 @@ class VaultViewModel(
     private val geminiService: GeminiService,
     private val currentUserId: String
 ) : ViewModel() {
+
+    private val googleDriveRunner = GoogleDriveFileRunner(geminiService)
 
     val docketsState: StateFlow<UiState<List<VaultDocket>>> = repository.observeDockets(currentUserId)
         .map<List<VaultDocket>, UiState<List<VaultDocket>>> { UiState.Success(it) }
@@ -82,6 +87,30 @@ class VaultViewModel(
     private val _selectedModule = MutableStateFlow(JusticeModule.MODULE_01)
     val selectedModule = _selectedModule.asStateFlow()
 
+    // [FIX 1: THE BLACK CASE KAGGLE TOKEN LOGIC]
+    private val _kaggleKey = MutableStateFlow("")
+    val kaggleKey = _kaggleKey.asStateFlow()
+
+    private val _isBlackCaseUnlocked = MutableStateFlow(false)
+    val isBlackCaseUnlocked = _isBlackCaseUnlocked.asStateFlow()
+
+    private val _blackCaseAccessDenied = MutableStateFlow(false)
+    val blackCaseAccessDenied = _blackCaseAccessDenied.asStateFlow()
+
+    // [FIX 3: THE 9-LANGUAGE SELECTOR] (Strict single active language state)
+    private val _activeLanguage = MutableStateFlow(com.example.data.model.VaultLanguage.TAGALOG)
+    val activeLanguage = _activeLanguage.asStateFlow()
+
+    // [FIX 5: RXM/LROS CONTACT RADAR (GPS INTEGRATION)]
+    private val _selectedRadarType = MutableStateFlow("PAO")
+    val selectedRadarType = _selectedRadarType.asStateFlow()
+
+    private val _radarTelemetry = MutableStateFlow<com.example.data.remote.RadarScanTelemetry?>(null)
+    val radarTelemetry = _radarTelemetry.asStateFlow()
+
+    private val _isRadarScanning = MutableStateFlow(false)
+    val isRadarScanning = _isRadarScanning.asStateFlow()
+
     private val _selectedModel = MutableStateFlow(VaultAiModel.ARGON_HIGH)
     val selectedModel = _selectedModel.asStateFlow()
 
@@ -112,6 +141,9 @@ class VaultViewModel(
     private val _generatedImage = MutableStateFlow<GeneratedImageResult?>(null)
     val generatedImage = _generatedImage.asStateFlow()
 
+    private val _driveRunResult = MutableStateFlow<DriveFileRunResult?>(null)
+    val driveRunResult = _driveRunResult.asStateFlow()
+
     private val _liveConnected = MutableStateFlow(false)
     val liveConnected = _liveConnected.asStateFlow()
 
@@ -134,10 +166,148 @@ class VaultViewModel(
     private var ttsSpeechJob: Job? = null
     private var liveClient: LiveVoiceSessionClient? = null
 
+    fun updateKaggleKey(newKey: String) {
+        _kaggleKey.value = newKey
+        if (_blackCaseAccessDenied.value) {
+            _blackCaseAccessDenied.value = false
+        }
+    }
+
+    fun submitBlackCaseKaggleKey() {
+        val unlocked = com.example.data.remote.LrosContactRadarService.verifyBlackCaseKaggleKey(_kaggleKey.value)
+        if (unlocked) {
+            _isBlackCaseUnlocked.value = true
+            _blackCaseAccessDenied.value = false
+            _statusBanner.value = "🔓 BLACK CASE: OWNER AUTHENTICATED • Glowing Conduits Online"
+        } else {
+            _isBlackCaseUnlocked.value = false
+            _blackCaseAccessDenied.value = true
+            _statusBanner.value = "🚨 BLACK CASE: ACCESS DENIED — Invalid Kaggle Wake-Up Key"
+        }
+    }
+
+    fun selectLanguage(language: com.example.data.model.VaultLanguage) {
+        _activeLanguage.value = language
+        _statusBanner.value = "🌐 ${language.localizedBanner}"
+    }
+
+    fun findNearestProfessional(context: Context, type: String) {
+        _selectedRadarType.value = type
+        viewModelScope.launch {
+            _isRadarScanning.value = true
+            try {
+                val result = com.example.data.remote.LrosContactRadarService.findNearestProfessional(context, type)
+                _radarTelemetry.value = result
+                _statusBanner.value = "📡 RXM/LROS Radar: Found ${result.places.size} nearest $type nodes (${result.gpsProviderUsed})"
+            } finally {
+                _isRadarScanning.value = false
+            }
+        }
+    }
+
+    fun wolfAvatarAnimation(context: Context, responseText: String) {
+        speakVerdictText(context, responseText)
+    }
+
+    fun sendToSmolagents(
+        context: Context,
+        moduleName: String,
+        userPrompt: String
+    ) {
+        if (userPrompt.isBlank()) return
+        viewModelScope.launch {
+            _isAiWorking.value = true
+            try {
+                val activeLang = _activeLanguage.value
+                val moduleTag = _selectedModule.value.tag
+                repository.addChatMessage(
+                    sender = "USER",
+                    moduleTag = moduleTag,
+                    phase = "GENESIS",
+                    planeStatus = "MORTAL",
+                    content = "[WOLF'S DEN -> $moduleName | ${activeLang.displayName}] $userPrompt",
+                    modelUsed = "SMOLAGENTS_ROUTE_REQ"
+                )
+
+                val reply = geminiService.sendToSmolagents(
+                    moduleName = moduleName,
+                    userPrompt = userPrompt,
+                    activeLanguage = activeLang
+                )
+
+                repository.addChatMessage(
+                    sender = "VAULT",
+                    moduleTag = reply.detectedModule,
+                    phase = reply.detectedPhase,
+                    planeStatus = reply.planeStatus,
+                    content = reply.text,
+                    modelUsed = reply.modelUsed,
+                    groundingSources = reply.groundingSources
+                )
+
+                // Trigger WolfAvatarAnimation(responseText) to simulate TTS Lip-sync
+                wolfAvatarAnimation(context, reply.text)
+            } finally {
+                _isAiWorking.value = false
+            }
+        }
+    }
+
     fun updateDeepMotionGlbUrl(newUrl: String) {
         if (newUrl.isNotBlank()) {
             _deepMotionGlbUrl.value = newUrl.trim()
             _statusBanner.value = "🦴 DeepMotion 3D Asset bound: ${newUrl.substringAfterLast('/')}"
+        }
+    }
+
+    fun runGoogleDriveFile(
+        context: Context,
+        driveUrl: String,
+        oauthAccessToken: String = "",
+        customInstruction: String = ""
+    ) {
+        if (driveUrl.isBlank()) return
+        viewModelScope.launch {
+            _isAiWorking.value = true
+            try {
+                val res = googleDriveRunner.runDriveFileFromUrl(
+                    context = context,
+                    driveUrlOrId = driveUrl,
+                    oauthAccessToken = oauthAccessToken,
+                    customInstruction = customInstruction
+                )
+                _driveRunResult.value = res
+                if (!res.localGlbPathOrUrl.isNullOrBlank()) {
+                    _deepMotionGlbUrl.value = res.localGlbPathOrUrl
+                }
+                _statusBanner.value = "🚀 Executed Google Drive File (${res.fileId}) via ${res.executionMode}"
+            } finally {
+                _isAiWorking.value = false
+            }
+        }
+    }
+
+    fun runLocalDriveUri(
+        context: Context,
+        uri: Uri,
+        customInstruction: String = ""
+    ) {
+        viewModelScope.launch {
+            _isAiWorking.value = true
+            try {
+                val res = googleDriveRunner.runLocalUriFile(
+                    context = context,
+                    uri = uri,
+                    customInstruction = customInstruction
+                )
+                _driveRunResult.value = res
+                if (!res.localGlbPathOrUrl.isNullOrBlank()) {
+                    _deepMotionGlbUrl.value = res.localGlbPathOrUrl
+                }
+                _statusBanner.value = "🚀 Executed Google Drive SAF File (${res.fileName}) via ${res.executionMode}"
+            } finally {
+                _isAiWorking.value = false
+            }
         }
     }
 
@@ -155,6 +325,15 @@ class VaultViewModel(
 
     fun selectModel(model: VaultAiModel) {
         _selectedModel.value = model
+        if (
+            model == VaultAiModel.RECURSIVE_FLINT ||
+            model == VaultAiModel.SWITCH_BASE_8 ||
+            model == VaultAiModel.LLAMA3_158BIT ||
+            model == VaultAiModel.LEROBOT_VLA ||
+            model == VaultAiModel.FLASH_LITE
+        ) {
+            _enableHighThinking.value = false
+        }
     }
 
     fun toggleHighThinking(enabled: Boolean) {
@@ -199,7 +378,8 @@ class VaultViewModel(
                         enableGoogleSearch = _enableGoogleSearch.value,
                         enableGoogleMaps = _enableGoogleMaps.value,
                         executeAll4Engines = _executeAll4Engines.value,
-                        forcedModuleTag = module.tag
+                        forcedModuleTag = module.tag,
+                        activeLanguage = _activeLanguage.value
                     )
                     reply.text
                 } else {
@@ -240,7 +420,8 @@ class VaultViewModel(
                     enableGoogleSearch = false,
                     enableGoogleMaps = false,
                     executeAll4Engines = false,
-                    forcedModuleTag = docket.moduleTag
+                    forcedModuleTag = docket.moduleTag,
+                    activeLanguage = _activeLanguage.value
                 )
 
                 repository.advanceDocketPhase(
@@ -291,7 +472,8 @@ class VaultViewModel(
                     enableGoogleSearch = _enableGoogleSearch.value,
                     enableGoogleMaps = _enableGoogleMaps.value,
                     executeAll4Engines = _executeAll4Engines.value,
-                    forcedModuleTag = moduleTag
+                    forcedModuleTag = moduleTag,
+                    activeLanguage = _activeLanguage.value
                 )
 
                 repository.addChatMessage(
