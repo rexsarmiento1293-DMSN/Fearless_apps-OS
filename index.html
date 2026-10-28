@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>I.A.M DIMENSION V.7</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <style>
+        :root { --gold: #FFD700; --magenta: #FF00FF; --cyan: #00FFFF; --lava: #FF4500; }
+        body { margin: 0; overflow: hidden; background-color: #050505; font-family: 'Orbitron', sans-serif; color: white; user-select: none; }
+        
+        .screen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            opacity: 0; visibility: hidden; transform: scale(0.85) translateY(30px);
+            transition: all 0.8s cubic-bezier(0.2, 0.8, 0.2, 1);
+            background-size: cover; background-position: center;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            background-color: #000;
+        }
+        .screen.active { opacity: 1; visibility: visible; transform: scale(1) translateY(0); z-index: 10; }
+        .screen.zoom-out { transform: scale(1.1) translateY(-30px); opacity: 0; }
+        
+        .overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 1; }
+        
+        .glass-panel {
+            background: rgba(10, 10, 15, 0.75); backdrop-filter: blur(15px);
+            border: 1px solid rgba(255,255,255,0.15); border-radius: 12px; padding: 25px;
+            text-align: center; box-shadow: 0 0 30px rgba(0, 255, 255, 0.15); z-index: 2; width: 85%; max-width: 350px;
+        }
+
+        .btn {
+            background: transparent; color: var(--cyan); border: 1px solid var(--cyan);
+            padding: 12px; margin-top: 15px; font-family: 'Orbitron'; font-weight: bold; letter-spacing: 1px;
+            border-radius: 6px; cursor: pointer; transition: 0.3s; width: 100%; text-transform: uppercase; font-size: 0.8rem;
+        }
+        .btn:hover, .btn:active { background: var(--cyan); color: black; box-shadow: 0 0 20px var(--cyan); }
+        .btn-gold { border-color: var(--gold); color: var(--gold); }
+        .btn-gold:hover, .btn-gold:active { background: var(--gold); color: black; box-shadow: 0 0 20px var(--gold); }
+        .btn-lava { border-color: var(--lava); color: var(--lava); }
+        .btn-lava:hover, .btn-lava:active { background: var(--lava); color: black; box-shadow: 0 0 20px var(--lava); }
+
+        .glow-cyan { text-shadow: 0 0 10px var(--cyan); }
+        .glow-gold { text-shadow: 0 0 10px var(--gold); }
+        
+        input {
+            background: rgba(0,0,0,0.8); border: 1px solid var(--magenta); color: white;
+            padding: 12px; border-radius: 6px; width: 100%; margin-top: 10px; outline: none; text-align: center; font-family: 'Share Tech Mono';
+        }
+
+        /* Simulated Neon Hoses */
+        .hose-glow { position: absolute; width: 100%; height: 100%; top: 0; left: 0; pointer-events: none; opacity: 0.2; transition: 1s; z-index: 1; }
+        .hose-glow.active { opacity: 1; filter: drop-shadow(0 0 15px var(--lava)); }
+    </style>
+</head>
+<body>
+
+    <!-- SCREEN 1: EXTERIOR LOGIN -->
+    <div class="screen active" id="screen-login" style="background-image: url('https://images.unsplash.com/photo-1614729939124-03290b5609ce?q=80&w=1000&auto=format&fit=crop');">
+        <div class="overlay"></div>
+        <div class="glass-panel" style="border-color: var(--gold); box-shadow: 0 0 30px rgba(255,215,0,0.2);">
+            <h1 class="text-xl glow-gold mb-1">I.A.M DIMENSION</h1>
+            <p class="text-[10px] text-gray-400 mb-6 tracking-widest">ELITE PORTAL LROS & RXM</p>
+            <input type="email" id="email" placeholder="ENTER EMAIL">
+            <button class="btn btn-gold mt-4" onclick="login()">Google Sign-In</button>
+            <button class="btn mt-2" onclick="goTo('screen-portal')">Ignite Portal (Guest)</button>
+        </div>
+    </div>
+
+    <!-- SCREEN 2: PORTAL TRANSITION -->
+    <div class="screen" id="screen-portal" style="background-image: url('https://images.unsplash.com/photo-1462331940025-496dfbfc7564?q=80&w=1000&auto=format&fit=crop');">
+        <div class="overlay"></div>
+        <h1 class="text-2xl glow-cyan animate-pulse text-center z-10 leading-loose">PORTAL ACTIVATED<br><span class="text-sm text-gray-300">ENTERING 0519 ZONE</span></h1>
+    </div>
+
+    <!-- SCREEN 3: DASHBOARD -->
+    <div class="screen" id="screen-dashboard" style="background-image: url('https://images.unsplash.com/photo-1534447677768-be436bb09401?q=80&w=1000&auto=format&fit=crop');">
+        <div class="overlay"></div>
+        <div class="absolute top-10 left-0 w-full text-center z-10">
+            <h1 class="text-lg glow-gold">COMMAND CENTER</h1>
+            <p class="text-[10px] text-cyan-400">REX THE DOPELGANGER</p>
+        </div>
+        
+        <div class="flex flex-col gap-3 w-[85%] max-w-[350px] z-10 mt-10">
+            <button class="glass-panel !p-4 text-left border-l-4 border-l-magenta hover:scale-105 transition-transform" onclick="goTo('screen-lros')">
+                <h2 class="text-sm glow-magenta">LROS JUGGERNAUT 1293</h2>
+                <p class="text-[10px] text-gray-400">7 Legal Modules</p>
+            </button>
+            <button class="glass-panel !p-4 text-left border-l-4 border-l-gold hover:scale-105 transition-transform" onclick="goTo('screen-rxm')">
+                <h2 class="text-sm glow-gold">RXM PHYLAX 0519</h2>
+                <p class="text-[10px] text-gray-400">Clinical • Organic • Vet</p>
+            </button>
+            <button class="glass-panel !p-4 text-left border-l-4 border-l-cyan hover:scale-105 transition-transform" onclick="goTo('screen-wolf')">
+                <h2 class="text-sm glow-cyan">WOLF'S DEN</h2>
+                <p class="text-[10px] text-gray-400">Smolagents & 3D Avatar</p>
+            </button>
+            <button class="glass-panel !p-4 text-left border-l-4 border-l-red-500 bg-red-900/20 hover:scale-105 transition-transform" onclick="goTo('screen-blackcase')">
+                <h2 class="text-sm text-red-500">THE BLACK CASE</h2>
+                <p class="text-[10px] text-red-300">Status: Locked (60%)</p>
+            </button>
+        </div>
+    </div>
+
+    <!-- SCREEN 4: LROS -->
+    <div class="screen" id="screen-lros" style="background-image: url('https://images.unsplash.com/photo-1550751827-4bd374c3f58b?q=80&w=1000&auto=format&fit=crop');">
+        <div class="overlay"></div>
+        <button class="absolute top-5 left-5 btn w-auto px-4 py-2" onclick="goTo('screen-dashboard')">← BACK</button>
+        <div class="glass-panel border-magenta z-10">
+            <h1 class="text-lg glow-magenta mb-2">LROS VAULT</h1>
+            <p class="text-xs text-gray-300">MODULE 4: SAKUNA<br>Typhoon, Earthquake, Fire, Flood</p>
+            <button class="btn mt-4">Open Chatbot</button>
+        </div>
+    </div>
+
+    <!-- SCREEN 5: RXM -->
+    <div class="screen" id="screen-rxm" style="background-image: url('https://images.unsplash.com/photo-1576086213369-97a306d36557?q=80&w=1000&auto=format&fit=crop');">
+        <div class="overlay"></div>
+        <button class="absolute top-5 left-5 btn w-auto px-4 py-2" onclick="goTo('screen-dashboard')">← BACK</button>
+        <div class="glass-panel border-gold z-10">
+            <h1 class="text-lg glow-gold mb-2">RXM PHYLAX</h1>
+            <p class="text-xs text-gray-300">Clinical • Organic • Vet<br>GPS Radar Active</p>
+            <button class="btn btn-gold mt-4">Launch Radar</button>
+        </div>
+    </div>
+
+    <!-- SCREEN 6: WOLF'S DEN -->
+    <div class="screen" id="screen-wolf" style="background-image: url('https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=1000&auto=format&fit=crop');">
+        <div class="overlay"></div>
+        <button class="absolute top-5 left-5 btn w-auto px-4 py-2" onclick="goTo('screen-dashboard')">← BACK</button>
+        <div class="glass-panel border-cyan z-10">
+            <h1 class="text-lg glow-cyan mb-2">WOLF'S DEN</h1>
+            <p class="text-xs text-gray-300">DeepMotion Avatar & TTS<br>Smolagents Router</p>
+        </div>
+    </div>
+
+    <!-- SCREEN 7: BLACK CASE -->
+    <div class="screen" id="screen-blackcase" style="background-image: url('https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1000&auto=format&fit=crop');">
+        <div class="overlay"></div>
+        <div class="hose-glow" id="hoses"></div>
+        <button class="absolute top-5 left-5 btn w-auto px-4 py-2" onclick="goTo('screen-dashboard')">← BACK</button>
+        
+        <div class="glass-panel border-red-500 z-10" style="box-shadow: 0 0 30px rgba(255,69,0,0.3);">
+            <h1 class="text-lg text-red-500 mb-2" id="case-status">THE BLACK CASE</h1>
+            <p class="text-xs text-gray-400 mb-4" id="case-sub">STATUS: LOCKED (60%)</p>
+            <input type="password" id="kaggle-key" placeholder="Kaggle Wake-Up Key">
+            <button class="btn btn-lava mt-2" onclick="unlockCase()">UNLOCK (VERIFY)</button>
+        </div>
+    </div>
+
+    <script>
+        // --- FIREBASE CONFIG (Perfect Backend) ---
+        const firebaseConfig = {
+            projectId: "gen-lang-client-0597903520",
+            appId: "1:653789541792:web:d6a471aef571d70d3de0c5",
+            apiKey: "AIzaSyC-zdM-oNdtg181TvEY5i5Gd_iuZfwpVbE",
+            authDomain: "gen-lang-client-0597903520.firebaseapp.com",
+            storageBucket: "gen-lang-client-0597903520.firebasestorage.app",
+            messagingSenderId: "653789541792"
+        };
+        if (!firebase.apps.length) { firebase.initializeApp(firebaseConfig); }
+        const auth = firebase.auth();
+        const db = firebase.firestore("ai-studio-android-iamsover-129d727b-49ce-41e6-b574-5705e44eced2");
+
+        // --- PS5-Style Navigation ---
+        function goTo(targetId) {
+            const current = document.querySelector('.screen.active');
+            const target = document.getElementById(targetId);
+            if (current) {
+                current.classList.remove('active');
+                current.classList.add('zoom-out');
+                setTimeout(() => current.classList.remove('zoom-out'), 800);
+            }
+            setTimeout(() => target.classList.add('active'), 200);
+        }
+
+        // --- Auth & Portal Logic ---
+        function login() {
+            const provider = new firebase.auth.GoogleAuthProvider();
+            auth.signInWithPopup(provider).then((res) => {
+                goTo('screen-portal');
+                setTimeout(() => goTo('screen-dashboard'), 2500);
+            }).catch((err) => {
+                alert("Auth Error: " + err.message);
+                // Guest fallback
+                goTo('screen-portal');
+                setTimeout(() => goTo('screen-dashboard'), 2500);
+            });
+        }
+
+        // --- Black Case Kaggle Logic ---
+        function unlockCase() {
+            const key = document.getElementById('kaggle-key').value;
+            const status = document.getElementById('case-status');
+            const sub = document.getElementById('case-sub');
+            
+            // Kaggle Key mula sa json mo
+            const SECRET = "adf0168c17ce78881d1ecb72ff930258";
+
+            if (key === SECRET) {
+                status.innerHTML = "OWNER AUTHENTICATED";
+                status.className = "text-lg glow-cyan text-cyan-400 mb-2";
+                sub.innerHTML = "POWER TRANSMISSION ACTIVE (100%)";
+                document.getElementById('hoses').classList.add('active');
+                document.getElementById('screen-blackcase').style.backgroundImage = "url('https://images.unsplash.com/photo-1550684848-fac1c5b4e853?q=80&w=1000&auto=format&fit=crop')";
+                
+                if(auth.currentUser) {
+                    db.collection("black_case_artifacts").add({
+                        userId: auth.currentUser.uid,
+                        timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                        status: "IMMORTALIZED"
+                    });
+                }
+            } else {
+                status.innerHTML = "ACCESS DENIED";
+                sub.innerHTML = "INVALID KEY";
+                alert("Maling Kaggle Key.");
+            }
+        }
+    </script>
+</body>
+          </html>
