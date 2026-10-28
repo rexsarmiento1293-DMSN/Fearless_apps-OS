@@ -26,6 +26,14 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
+      - name: Install Android SDK packages
+        run: |
+          sdkmanager --install \
+            "platform-tools" \
+            "platforms;android-35" \
+            "build-tools;35.0.0"
+          yes | sdkmanager --licenses >/dev/null || true
+
       - name: Prepare Debug Keystore & Environment
         run: |
           if [ ! -f debug.keystore ]; then
@@ -51,7 +59,7 @@ jobs:
         run: chmod +x ./gradlew
 
       - name: Build Debug APK
-        run: ./gradlew assembleDebug --no-daemon --stacktrace
+        run: ./gradlew assembleDebug --no-daemon --stacktrace --no-configuration-cache
 
       - name: Upload Debug APK Artifact
         uses: actions/upload-artifact@v4
