@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">Vault 1293</string>
+    <!-- Replace with the OAuth web client ID from google-services.json for Google Sign-In. -->
+    <string name="default_web_client_id" translatable="false">missing-google-client-id</string>
 </resources>
